@@ -1,0 +1,2 @@
+prototype: "/main/text.go"
+load_dynamically: false
