@@ -172,7 +172,7 @@ launch Chrome **without** `--autoplay-policy=no-user-gesture-required`
 ## Shipping
 
 `tools/package.sh` regenerates every asset, builds release, validates
-`meta.json`, and writes `dist/defold-minit-template.zip` with `index.html`,
+`meta.json`, and writes `dist/minit-template-defold.zip` with `index.html`,
 `meta.json` and the notices at the archive root. Pre-flight refuses a bundle
 missing the audio shim, carrying a pthread wasm, containing project sources, or
 over Minit's 50 MB limit.
@@ -180,7 +180,7 @@ over Minit's 50 MB limit.
 Then, from the `minits` tooling repo:
 
 ```bash
-npm run createProject defold-minit/dist/defold-minit-template.zip --dry-run
+npm run createProject minit-template-defold/dist/minit-template-defold.zip --dry-run
 ```
 
 The project id it records lands in `publishing/meta.txt`.
