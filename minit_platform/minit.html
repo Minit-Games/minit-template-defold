@@ -1,0 +1,303 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=0, minimal-ui, shrink-to-fit=no, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<title>{{project.title}}</title>
+<style>
+/* Minit host shell.
+   The game must fill its slot with no chrome and no scrollbars. The host keeps
+   the frame hidden until the game calls minit.loading_done(), so the Defold
+   loader runs behind the host's own splash and needs no progress UI of its own.
+   Background matches the render script's clear colour so there is no flash of a
+   different colour between the page painting and the first drawn frame. */
+html, body {
+	position: fixed;
+	inset: 0;
+	width: 100%;
+	height: 100%;
+	margin: 0;
+	padding: 0;
+	border: 0;
+	overflow: hidden;
+	background: #59a0d8;
+	/* The game is played by stabbing at it with several fingers at once. Without
+	   these, a fast drag is a back-navigation swipe on iOS and a double-tap is a
+	   zoom -- both of which eat whacks. */
+	touch-action: none;
+	overscroll-behavior: none;
+	-webkit-user-select: none;
+	user-select: none;
+	-webkit-tap-highlight-color: transparent;
+	-webkit-touch-callout: none;
+}
+
+/* dmloader.js sizes #app-container itself on every resize (and throws if it is
+   missing), so the id has to stay even though the CSS below would already fill
+   the viewport. */
+#app-container {
+	position: absolute;
+	inset: 0;
+	width: 100%;
+	height: 100%;
+	overflow: hidden;
+}
+
+#canvas {
+	display: block;
+	width: 100%;
+	height: 100%;
+	border: 0;
+	outline: none;
+	touch-action: none;
+}
+
+canvas:focus, canvas:active { outline: none; border: 0; }
+
+#webgl-not-supported {
+	position: absolute;
+	inset: 0;
+	display: none;
+	align-items: center;
+	justify-content: center;
+	margin: 0 2rem;
+	color: #ffe9b0;
+	font: 600 16px/1.4 system-ui, -apple-system, "Segoe UI", sans-serif;
+	text-align: center;
+}
+</style>
+</head>
+<body>
+<div id="app-container">
+	<canvas id="canvas" tabindex="1" width="{{display.width}}" height="{{display.height}}"></canvas>
+</div>
+<div id="webgl-not-supported"><p>This game needs WebGL, which this browser has turned off.</p></div>
+
+<script>
+	// Pre-Chrome-71 browsers have no globalThis; dmloader expects one.
+	if (typeof globalThis === 'undefined') { window.globalThis = window; }
+</script>
+<script>
+/* -------------------------------------------------------------------------
+   Audio recovery + diagnostics for the Minit app.
+
+   THE WEAKNESS THIS COVERS. Defold's web sound device creates one AudioContext
+   at engine boot and, while that context is not "running", its _queue() throws
+   every buffer away and returns -- silently, with no error and no retry. The
+   only thing that ever resumes it is DefoldSoundDevice.TryResumeAudio(), which
+   the engine calls from its OWN canvas touch/mouse handlers. So if the context
+   is suspended at a moment when no further canvas touch arrives -- or the first
+   gesture is consumed before it reaches the canvas -- the game stays completely
+   silent while everything else works. That is the exact shape of the failure
+   reported in the app, and the engine has no recovery path of its own.
+
+   This adds one: resume on any gesture anywhere on the page (not just the
+   canvas), on visibility and focus changes, and on a short backing-off
+   watchdog. resume() outside a gesture is simply refused where that is not
+   allowed, so the attempt is free.
+
+   WHAT THIS DELIBERATELY DOES NOT DO. The app injects its own AudioContext
+   subclass whose `destination` is a mute gain it controls, and drives that gain
+   for focus, ducking and lifecycle fades. That gain is the app's business: if
+   the app has muted the drop, it is meant to be muted. Nothing here touches
+   _muteGain -- this only ever asks a suspended context to run.
+
+   DIAGNOSTICS. The app captures the page's console (window.__minitDrainLogs),
+   so one line is logged whenever the audio state changes. It reports both
+   halves of the question -- whether the context is running, and what the app's
+   own volume/gain is -- which tells apart "we are suspended" from "the app has
+   us muted".
+   ------------------------------------------------------------------------- */
+/* --- 0. Repair the host's volume channel (DROP-8164) -------------------
+   The app tells a game its volume with
+       window.postMessage(payload, window.location.origin)
+   and on iOS the game is served from the minitlocal:// custom scheme, whose
+   origin is OPAQUE -- so location.origin is the string "null", and postMessage
+   does not fail soft with that value, it THROWS. Every volume message the app
+   sends is therefore discarded: the seed baked into the injection at mount time
+   is the only value the page ever sees, and for a drop mounted before it was
+   focused that seed is 0. The game is then healthy and permanently inaudible.
+   Only a foreground transition fixes it, because __minitResumeAudio is a direct
+   call rather than a postMessage -- which is exactly the reported symptom.
+
+   Rather than guess what volume the host wanted, make its own message arrive:
+   retry with '*' when a same-window post is rejected for its target origin. The
+   host's real intent then flows through untouched, including a deliberate mute.
+   Harmless everywhere else -- on a normal origin the first call simply
+   succeeds. */
+(function () {
+	if (typeof window.postMessage !== 'function') { return; }
+	var native = window.postMessage.bind(window);
+	window.postMessage = function (message, targetOrigin, transfer) {
+		try {
+			return native(message, targetOrigin, transfer);
+		} catch (err) {
+			// Only the target-origin rejection is retried; anything else (an
+			// unclonable payload, say) is a real error and must propagate.
+			if (!err || err.name !== 'SyntaxError' || targetOrigin === '*') { throw err; }
+			console.log('[minit-audio] postMessage origin ' + String(targetOrigin) +
+				' rejected; retrying same-window with "*"');
+			return native(message, '*', transfer);
+		}
+	};
+}());(function () {
+	var ctx = function () {
+		var shared = window._dmJSDeviceShared;
+		return shared && shared.audioCtx;
+	};
+
+	// Defold hands us the one context it owns. The constructor is wrapped as
+	// well so that ANY other context the page ends up with is repaired too: a
+	// repair that watches one of several contexts is indistinguishable from a
+	// repair that does not work -- healthy game, correct logic, wrong target,
+	// and only the app's foreground path recovers it.
+	var extra = [];
+	window.__minitAudioContexts = extra;
+	var Native = window.AudioContext || window.webkitAudioContext;
+	if (Native) {
+		var wrapCtor = function () {
+			var c = new Native(...arguments);
+			extra.push(c);
+			return c;
+		};
+		wrapCtor.prototype = Native.prototype;
+		window.AudioContext = wrapCtor;
+		window.webkitAudioContext = wrapCtor;
+	}
+
+	/** Defold's context plus anything else, deduped (usually the same object). */
+	function allContexts() {
+		var out = [], c = ctx();
+		if (c) { out.push(c); }
+		for (var i = 0; i < extra.length; i++) {
+			if (out.indexOf(extra[i]) === -1) { out.push(extra[i]); }
+		}
+		return out;
+	}
+	var last = '';
+	function report(why) {
+		try {
+			var c = ctx();
+			if (!c) return;
+			var gain = c._muteGain && c._muteGain.gain ? c._muteGain.gain.value : null;
+			var line = c.state + '|' + (gain === null ? 'nogain' : gain.toFixed(2))
+				+ '|' + (window.dropAudioVolume === undefined ? 'novol' : window.dropAudioVolume)
+				+ '|host=' + (hostSpoke ? 'spoke' : 'silent')
+				+ '|gestured=' + (gestured ? 'yes' : 'no')
+				+ '|n=' + allContexts().length;
+			if (line === last) return;
+			last = line;
+			console.log('[minit-audio] ' + line + ' (' + why + ') rate=' + c.sampleRate);
+		} catch (e) {}
+	}
+	// The second failure mode, and the one a background-and-return cures.
+	//
+	// The app's injected context routes the game through a mute gain it drives
+	// itself, seeded at 0 and faded up to window.dropAudioVolume shortly after
+	// the context is constructed. If that fade never lands, the game is
+	// perfectly healthy -- context running, engine mixing, buffers queued -- and
+	// completely inaudible. Returning from background is the one path that
+	// re-applies it (__minitResumeAudio explicitly fades to the desired volume),
+	// which is exactly the reported symptom.
+	//
+	// This re-applies the HOST'S OWN target using the host's own fadeVolume, and
+	// only when the host says it wants us audible (dropAudioVolume > 0) while the
+	// gain is still at zero. If the app has deliberately muted or ducked the drop
+	// it sets that value to 0 or DUCKED_VOLUME, and this does nothing -- so a
+	// muted drop stays muted and a fade-out is never fought.
+	// Did the host ever state a volume AT ALL? The distinction matters, because
+	// a mute and a silence nobody asked for look identical from in here: both
+	// are a mute gain sitting at 0. The app seeds that gain at 0 and states the
+	// real volume once, on document load; if the engine's context does not
+	// exist yet, nothing restates it until the next foreground transition --
+	// which is exactly the "no sound until I background the app and come back"
+	// symptom. So an explicit 0 is a real mute and is left alone, while a 0 we
+	// were merely never spoken to about is repaired, and only after a real
+	// gesture, so the player has demonstrably asked for the game.
+	var hostSpoke = false, gestured = false;
+	window.addEventListener('message', function (e) {
+		var d = e && e.data;
+		if (d && typeof d === 'object' && /^minit\.(fade|set)DropAudioVolume$/.test(d.type)) {
+			hostSpoke = true;
+			console.log('[minit-audio] host set volume ' + d.value +
+				' at ' + Math.round(performance.now()) + 'ms');
+		}
+	}, true);
+	var stuckSince = 0;
+	function repairGain(why) {
+		var list = allContexts();
+		for (var i = 0; i < list.length; i++) { repairOne(list[i], why); }
+	}
+
+	function repairOne(c, why) {
+		try {
+			if (!c || !c._muteGain || !c._muteGain.gain) { stuckSince = 0; return; }
+			var target = window.dropAudioVolume;
+			if (typeof target !== 'number') { stuckSince = 0; return; }
+			if (target <= 0) {
+				// Host said 0: a deliberate mute, honoured. Host said nothing:
+				// nothing to honour, so bring the drop up to full once running.
+				if (hostSpoke || !gestured || c.state !== 'running') { stuckSince = 0; return; }
+				target = 1;
+			}
+			if (c._muteGain.gain.value > 0.001) { stuckSince = 0; return; }
+			// The host legitimately holds the gain at 0 briefly (a prime window,
+			// then a 0.3s ramp), so only act once it has plainly not arrived.
+			var now = Date.now();
+			if (!stuckSince) { stuckSince = now; return; }
+			if (now - stuckSince < 1500) return;
+			stuckSince = now;
+			if (typeof c.fadeVolume === 'function') {
+				c.fadeVolume(target, 0.3);
+				console.log('[minit-audio] ' + (hostSpoke ? 're-applied host volume ' :
+					'host never set a volume; restoring ') + target + ' (' + why + ')');
+			}
+		} catch (e) { }
+	}
+
+	function resume(why) {
+		var list = allContexts();
+		for (var i = 0; i < list.length; i++) {
+			try {
+				var c = list[i];
+				if (c && c.state !== 'running' && typeof c.resume === 'function') {
+					var p = c.resume();
+					if (p && p.then) { p.then(function () { report(why); }, function () { report(why + '-refused'); }); }
+				}
+			} catch (e) {}
+		}
+		repairGain(why);
+		report(why);
+	}
+
+	['touchstart', 'touchend', 'pointerdown', 'mousedown', 'click'].forEach(function (evt) {
+		// Capture phase, so this runs even if something else stops propagation
+		// before the canvas sees the gesture.
+		document.addEventListener(evt, function () { gestured = true; resume(evt); }, { capture: true, passive: true });
+	});
+	document.addEventListener('visibilitychange', function () {
+		if (!document.hidden) { resume('visible'); }
+	});
+	window.addEventListener('focus', function () { resume('focus'); });
+	window.addEventListener('pageshow', function () { resume('pageshow'); });
+
+	// Backing-off watchdog: often early on, rarely later. Covers a context that
+	// is suspended by app lifecycle at a moment when no gesture follows.
+	var tries = 0;
+	(function tick() {
+		tries++;
+		resume('watchdog');
+		var delay = tries < 20 ? 500 : (tries < 40 ? 2000 : 10000);
+		setTimeout(tick, delay);
+	})();
+}());
+</script>
+<script id="engine-loader" type="text/javascript" src="dmloader.js"></script>
+<script id="engine-start" type="text/javascript">
+	EngineLoader.load("canvas", "{{exe-name}}");
+</script>
+</body>
+</html>
