@@ -1,0 +1,64 @@
+-- One orthographic projection spanning the live backbuffer: 0..window_width by
+-- 0..window_height. A world unit is a backbuffer pixel, so there is no design
+-- resolution for content to be letterboxed or stretched against.
+--
+-- WHY, because it is the opposite of what the Defold guide suggests: the Minit
+-- app gives a game a slot of roughly 2:3 -- much wider relative to its height
+-- than a phone screen -- because the game sits between the app's header and its
+-- toolbar. Anything laid out against a fixed design width paints a fraction of
+-- that slot and leaves a band down one side, and you cannot see it in a desktop
+-- browser at a phone viewport. modules/layout.lua rebuilds every number in the
+-- game from window.get_size() instead.
+
+local IDENTITY = vmath.matrix4()
+
+local function resize(self)
+    local w = render.get_window_width()
+    local h = render.get_window_height()
+    if w == self.width and h == self.height then
+        return w > 0 and h > 0
+    end
+    self.width, self.height = w, h
+    if w > 0 and h > 0 then
+        self.projection = vmath.matrix4_orthographic(0, w, 0, h, -1, 1)
+    end
+    return w > 0 and h > 0
+end
+
+function init(self)
+    self.tile = render.predicate({ "tile" })     -- sprites AND labels
+    self.particle = render.predicate({ "particle" })
+    self.gui = render.predicate({ "gui" })
+    self.width, self.height = -1, -1
+    self.clear = {
+        [graphics.BUFFER_TYPE_COLOR0_BIT] = vmath.vector4(0.35, 0.62, 0.85, 1),
+        [graphics.BUFFER_TYPE_DEPTH_BIT] = 1,
+        [graphics.BUFFER_TYPE_STENCIL_BIT] = 0,
+    }
+    resize(self)
+end
+
+function update(self)
+    if not resize(self) then return end
+
+    render.set_depth_mask(true)
+    render.set_stencil_mask(0xff)
+    render.clear(self.clear)
+
+    render.set_viewport(0, 0, self.width, self.height)
+    render.set_view(IDENTITY)
+    render.set_projection(self.projection)
+
+    render.set_depth_mask(false)
+    render.disable_state(graphics.STATE_DEPTH_TEST)
+    render.enable_state(graphics.STATE_BLEND)
+    render.set_blend_func(graphics.BLEND_FACTOR_SRC_ALPHA, graphics.BLEND_FACTOR_ONE_MINUS_SRC_ALPHA)
+
+    render.draw(self.tile)
+    render.draw(self.particle)
+
+    render.enable_state(graphics.STATE_STENCIL_TEST)
+    render.draw(self.gui)
+    render.disable_state(graphics.STATE_STENCIL_TEST)
+    render.disable_state(graphics.STATE_BLEND)
+end

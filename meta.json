@@ -1,0 +1,10 @@
+{
+  "schemaVersion": 1,
+  "description": "",
+  "controls": "",
+  "logic": "",
+  "resultSorting": "highestScore",
+  "license": "proprietary",
+  "credits": "Built with the Defold engine (Defold License 1.0).",
+  "config": []
+}

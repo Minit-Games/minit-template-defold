@@ -1,0 +1,71 @@
+-- YOUR GAME. The only file you have to edit: replace the parts marked
+-- PLACEHOLDER with your own. Everything in minit_platform/ is what makes a
+-- Defold game work inside the Minit app; leave it alone.
+--
+-- What every Minit game does:
+--   * minit.loading_done()   -- last line of init, once the scene is built
+--   * minit.report_result()  -- exactly once, when the game clearly ends
+--   * audio.set_active(true) -- on the first tap, so sound starts after the
+--                               browser lets the page play audio
+--   * layout.refresh()       -- no design resolution; rebuild from the viewport
+
+local minit  = require("minit.minit")
+local layout = require("minit_platform.layout")
+local audio  = require("minit_platform.audio")
+
+local ROUND_SECONDS = 10                      -- PLACEHOLDER
+local FONT_SIZE = 48                          -- the size assets/fonts/game.font is baked at
+
+local function read_config()
+    -- Declare each key in meta.json "config", then read it here, e.g.:
+    -- local speed = tonumber(minit.get_config_value("speed", "")) or 1
+    return {}
+end
+
+-- Center the label and size it from the viewport.
+local function relayout()
+    go.set_position(vmath.vector3(layout.width * 0.5, layout.height * 0.5, 0), "game")
+    go.set_scale(layout.unit * 0.8 / FONT_SIZE, "game")
+end
+
+local function finish(self, score, flavor_text)
+    if self.finished then return end          -- report_result exactly once
+    self.finished = true
+    -- `delay` (ms) holds the host's result screen back so the ending is seen.
+    -- To keep a best score between runs, also pass user_data = "..." here and
+    -- read it back with minit.get_user_data() in init.
+    minit.report_result(score, { flavor_text = flavor_text, delay = 800 })
+end
+
+function init(self)
+    msg.post(".", "acquire_input_focus")
+    self.config = read_config()
+    audio.init()
+    layout.refresh()
+    relayout()
+    -- PLACEHOLDER: a 10 s tap round -- replace with your scene
+    self.taps, self.time_left = 0, ROUND_SECONDS
+    minit.loading_done()                      -- last line: the game is ready
+end
+
+function update(self, dt)
+    if layout.refresh() then relayout() end
+    if self.finished then return end
+    -- PLACEHOLDER: the round ends on time -- every game needs a clear end
+    self.time_left = math.max(0, self.time_left - dt)
+    label.set_text("#label", ("%d taps   %d s"):format(self.taps, math.ceil(self.time_left)))
+    if self.time_left == 0 then
+        label.set_text("#label", ("Time's up!\n%d taps"):format(self.taps))
+        finish(self, self.taps, self.taps .. " taps in " .. ROUND_SECONDS .. " seconds")
+    end
+end
+
+function on_input(self, action_id, action)
+    if action_id ~= hash("touch") or not action.pressed then return end
+    audio.set_active(true)                    -- first tap unlocks sound
+    if self.finished then return end
+    -- Where the tap landed, in the same pixels layout.width/height use:
+    -- local x, y = layout.to_world(action.x, action.y)
+    -- PLACEHOLDER: count taps -- replace with your game
+    self.taps = self.taps + 1
+end

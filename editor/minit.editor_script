@@ -1,0 +1,46 @@
+-- Adds "Project > Minit: Package for Upload" to the Defold editor. The work
+-- is done in editor/minit_package.lua, which can also run without this
+-- dialog (see there).
+--
+-- Kept identical in minit-template-defold and minit-sample-defold.
+--
+-- After editing either file: Project > Reload Editor Scripts.
+
+local minit_package = require("editor.minit_package")
+
+local M = {}
+
+local function show(title, lines, open_path)
+	local buttons = {}
+	if open_path then
+		buttons[#buttons + 1] = editor.ui.dialog_button({ text = "Open dist folder", result = "open" })
+	end
+	buttons[#buttons + 1] = editor.ui.dialog_button({ text = "Close", cancel = true, default = true })
+	local result = editor.ui.show_dialog(editor.ui.dialog({
+		title = title,
+		content = editor.ui.scroll({ content = editor.ui.label({ text = table.concat(lines, "\n") }) }),
+		buttons = buttons,
+	}))
+	if result == "open" then
+		editor.open_external_file(open_path)
+	end
+end
+
+function M.get_commands()
+	return {
+		{
+			label = "Minit: Package for Upload",
+			locations = { "Project" },
+			run = function()
+				local r = minit_package.run()
+				local lines = {}
+				for i, line in ipairs(r.lines) do
+					lines[i] = minit_package.editor_string(line)
+				end
+				show(r.heading, lines, r.ok and r.dist or nil)
+			end,
+		},
+	}
+end
+
+return M
