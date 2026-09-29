@@ -132,6 +132,11 @@ canvas:focus, canvas:active { outline: none; border: 0; }
 	if (typeof window.postMessage !== 'function') { return; }
 	var native = window.postMessage.bind(window);
 	window.postMessage = function (message, targetOrigin, transfer) {
+		// The options overload, postMessage(message, { targetOrigin, transfer }),
+		// passes through untouched; the host uses the legacy string overload.
+		if (targetOrigin !== null && typeof targetOrigin === 'object') {
+			return native(message, targetOrigin);
+		}
 		try {
 			return native(message, targetOrigin, transfer);
 		} catch (err) {
@@ -226,7 +231,8 @@ canvas:focus, canvas:active { outline: none; border: 0; }
 				' at ' + Math.round(performance.now()) + 'ms');
 		}
 	}, true);
-	var stuckSince = 0;
+	// Per context, so a healthy context cannot reset another's stuck timer.
+	var stuckSince = new WeakMap();
 	function repairGain(why) {
 		var list = allContexts();
 		for (var i = 0; i < list.length; i++) { repairOne(list[i], why); }
@@ -234,22 +240,23 @@ canvas:focus, canvas:active { outline: none; border: 0; }
 
 	function repairOne(c, why) {
 		try {
-			if (!c || !c._muteGain || !c._muteGain.gain) { stuckSince = 0; return; }
+			if (!c || !c._muteGain || !c._muteGain.gain) { if (c) { stuckSince.delete(c); } return; }
 			var target = window.dropAudioVolume;
-			if (typeof target !== 'number') { stuckSince = 0; return; }
+			if (typeof target !== 'number') { stuckSince.delete(c); return; }
 			if (target <= 0) {
 				// Host said 0: a deliberate mute, honoured. Host said nothing:
 				// nothing to honour, so bring the drop up to full once running.
-				if (hostSpoke || !gestured || c.state !== 'running') { stuckSince = 0; return; }
+				if (hostSpoke || !gestured || c.state !== 'running') { stuckSince.delete(c); return; }
 				target = 1;
 			}
-			if (c._muteGain.gain.value > 0.001) { stuckSince = 0; return; }
+			if (c._muteGain.gain.value > 0.001) { stuckSince.delete(c); return; }
 			// The host legitimately holds the gain at 0 briefly (a prime window,
 			// then a 0.3s ramp), so only act once it has plainly not arrived.
 			var now = Date.now();
-			if (!stuckSince) { stuckSince = now; return; }
-			if (now - stuckSince < 1500) return;
-			stuckSince = now;
+			var since = stuckSince.get(c);
+			if (!since) { stuckSince.set(c, now); return; }
+			if (now - since < 1500) return;
+			stuckSince.set(c, now);
 			if (typeof c.fadeVolume === 'function') {
 				c.fadeVolume(target, 0.3);
 				console.log('[minit-audio] ' + (hostSpoke ? 're-applied host volume ' :

@@ -235,6 +235,17 @@ local function check_meta(root, fail, warn)
 		fail("meta.json is not valid JSON: " .. tostring(meta))
 		return
 	end
+	-- Valid JSON can still be null, a string or a number.
+	if type(meta) ~= "table" then
+		fail("meta.json: the top level must be a JSON object")
+		return
+	end
+	local config = meta.config
+	if config ~= nil and type(config) ~= "table" then
+		fail("meta.json: config must be an array")
+		config = nil
+	end
+	config = config or {}
 
 	for _, key in ipairs({ "schemaVersion", "resultSorting" }) do
 		if meta[key] == nil then
@@ -256,8 +267,8 @@ local function check_meta(root, fail, warn)
 			todo[#todo + 1] = key
 		end
 	end
-	for _, c in ipairs(meta.config or {}) do
-		if type(c.description) == "string" and c.description:match("^%s*TODO") then
+	for _, c in ipairs(config) do
+		if type(c) == "table" and type(c.description) == "string" and c.description:match("^%s*TODO") then
 			todo[#todo + 1] = ("config[\"%s\"].description"):format(tostring(c.key))
 		end
 	end
@@ -298,9 +309,11 @@ local function check_meta(root, fail, warn)
 	end
 
 	local declared = {}
-	for _, c in ipairs(meta.config or {}) do
-		local at = ("config[\"%s\"]"):format(tostring(c.key))
-		if not c.key then
+	for _, c in ipairs(config) do
+		local at = ("config[\"%s\"]"):format(type(c) == "table" and tostring(c.key) or "?")
+		if type(c) ~= "table" then
+			fail("meta.json: a config entry must be an object")
+		elseif not c.key then
 			fail("meta.json: a config entry has no key")
 		else
 			if declared[c.key] then

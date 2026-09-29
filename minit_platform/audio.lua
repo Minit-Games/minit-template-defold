@@ -87,6 +87,7 @@ end
 function M.music_start()
     if music_playing then return true end
     if not music_enabled then return true end     -- nothing to wait for
+    if not active then return false end           -- the gate is still closed
     if not M.context_running() then return false end
     music_playing = true
     go.set(music_url, "gain", MUSIC_GAIN)
