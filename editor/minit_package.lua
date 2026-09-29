@@ -160,8 +160,9 @@ end
 
 -- The editor's json.encode turns an empty "config": [] into {} and reorders
 -- keys, so the title goes into meta.json's text instead of re-encoding it.
+-- ASCII control range spelled out: the editor's %c doesn't follow C here.
 local function json_quote(s)
-	return "\"" .. s:gsub("[%c\"\\]", function(c)
+	return "\"" .. s:gsub("[\1-\31\"\\]", function(c)
 		if c == "\"" then
 			return "\\\""
 		elseif c == "\\" then
