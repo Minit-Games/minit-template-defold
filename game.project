@@ -1,7 +1,7 @@
 [project]
 title = My Minit
 version = 1.0
-dependencies#0 = https://github.com/Minit-Games/minit-defold/archive/refs/tags/v0.1.0.zip
+dependencies#0 = https://github.com/Minit-Games/minit-defold/archive/refs/heads/feature/DROP-9904-defold-sdk-packager-and-html-shell.zip
 
 [bootstrap]
 main_collection = /main/main.collectionc
@@ -25,7 +25,7 @@ default_texture_mag_filter = linear
 shared_state = 1
 
 [html5]
-htmlfile = /minit_platform/minit.html
+htmlfile = /minit/minit.html
 scale_mode = stretch
 show_fullscreen_button = 0
 show_made_with_defold = 0
