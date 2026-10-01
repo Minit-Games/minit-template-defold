@@ -8,7 +8,7 @@ A Defold project that already works inside Minit Games: a 10-second tap round yo
 4. **Name your game** in Project Settings > Title. Players see it; with Defold's New Project it is already set.
 5. **Make your game** in `main/game.script`. The parts marked `PLACEHOLDER` are yours to replace.
 6. **Describe your game** in `meta.json` (recommended). `controls` and `logic` appear under How to play (the (i) button under the game), `description` behind Show more. minit.studio reads them on the first upload only; edit them there later. The title is not in `meta.json`. See the [meta.json reference](https://minit.studio/docs/meta-json-reference), [Writing your description](https://minit.studio/docs/writing-your-description) and [Limits & Constraints](https://minit.studio/docs/limits-and-constraints).
-7. **Project > Minit: Package for Upload.** It checks everything, lists what is missing, and writes `dist/<your title>.zip`.
+7. **Project > Minit: Package for Upload.** It checks everything, lists what is missing, and writes `dist/<your title>.zip`. Add a THIRD-PARTY-NOTICES.txt for your own assets (fonts, music, art); the packager adds the Defold engine and Minit SDK notices itself.
 8. **Upload** that ZIP at [minit.studio](https://minit.studio).
 9. **Test on your phone:** on the game's page in minit.studio, click the QR button in the Live preview panel, then Generate preview link, and scan the code. With the Minit app installed, the game opens in the app; without it, it plays on a web page with links to download the app. The link works for 15 minutes. See [Testing Your Game on Device](https://minit.studio/docs/sharing-a-preview-link).
 
@@ -18,4 +18,4 @@ It is what makes the game work in the Minit app: audio that plays and is audible
 
 ## AI agents
 
-With the editor open, the packaging also runs headless over its HTTP `/eval` route; see the header of `editor/minit_package.lua`.
+With the editor open, the packaging also runs headless over its HTTP `/eval` route; evaluate `require("minit.editor.minit_package").run()` there, as the header of `minit/editor/minit_package.lua` in the Minit SDK describes.
