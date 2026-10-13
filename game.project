@@ -1,7 +1,7 @@
 [project]
 title = My Minit
 version = 1.0
-dependencies#0 = https://github.com/Minit-Games/minit-defold/archive/refs/tags/v0.2.0.zip
+dependencies#0 = https://github.com/Minit-Games/minit-defold/archive/refs/tags/v1.16.0.zip
 
 [bootstrap]
 main_collection = /main/main.collectionc
