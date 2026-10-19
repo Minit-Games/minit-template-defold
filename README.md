@@ -12,6 +12,8 @@ A Defold project that already works inside Minit Games: a 10-second tap round yo
 8. **Upload** that ZIP at [minit.studio](https://minit.studio).
 9. **Test on your phone:** on the game's page in minit.studio, click the QR button in the Live preview panel, then Generate preview link, and scan the code. With the Minit app installed, the game opens in the app; without it, it plays on a web page with links to download the app. The link works for 15 minutes. See [Testing Your Game on Device](https://minit.studio/docs/sharing-a-preview-link).
 
+Textures are compressed by the SDK's texture profile, set in `game.project`; images under any `uncompressed/` folder stay uncompressed, e.g. pixel art that must stay pixel-exact.
+
 ## Don't edit `minit_platform/`
 
 It is what makes the game work in the Minit app: audio that plays and is audible there, layout for the app's game slot, and touch mapping. Change your game in `main/` instead.
