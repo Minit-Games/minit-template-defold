@@ -12,7 +12,7 @@ A Defold project that already works inside Minit Games: a 10-second tap round yo
 8. **Upload** that ZIP at [minit.studio](https://minit.studio).
 9. **Test on your phone:** on the game's page in minit.studio, click the QR button in the Live preview panel, then Generate preview link, and scan the code. With the Minit app installed, the game opens in the app; without it, it plays on a web page with links to download the app. The link works for 15 minutes. See [Testing Your Game on Device](https://minit.studio/docs/sharing-a-preview-link).
 
-Textures are compressed by the SDK's texture profile, set in `game.project`; images under any `uncompressed/` folder stay uncompressed, e.g. pixel art that must stay pixel-exact.
+Textures are compressed by the SDK's texture profile, set in `game.project`; atlases under any `uncompressed/` folder stay uncompressed, e.g. pixel art that must stay pixel-exact. The `.atlas` file's folder counts, not its images' folder.
 
 ## Don't edit `minit_platform/`
 
