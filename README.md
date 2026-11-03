@@ -24,7 +24,8 @@ The example in `main/game.script` adjusts its tap pop for motion quality and dev
 - Switch it to Auto Cover, or move it, as your game needs.
 - Anchor GUI nodes to the screen edges they belong to.
 - Place physics bodies once against 960×1480; never move them on resize.
-- Convert taps to world coordinates with `layout.to_world(action.x, action.y, "/camera#camera")`; `layout.visible_rect("/camera#camera")` gives the visible world area for things that should fill the slot.
+- Convert taps to world coordinates with `layout.to_world(action.x, action.y, "/camera#camera")`.
+- For things that should fill the slot, query `layout.visible_rect("/camera#camera")` in `update`, not `init`, and re-query it after a resize.
 
 ## Don't edit `minit_platform/audio.lua`
 

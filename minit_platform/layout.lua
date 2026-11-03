@@ -30,26 +30,30 @@ function M.refresh()
     return true
 end
 
-local function has_window()
-    M.refresh()
-    return M.width > 0 and M.height > 0
+-- Reads the window without touching M.width/M.height, so refresh() stays the
+-- only writer and its return value stays truthful.
+local function window_size()
+    local w, h = window.get_size()
+    if w > 0 and h > 0 then return w, h end
 end
 
 --- Convert an input action's coordinates into world coordinates through the
 --- given camera (nil: the last enabled camera).
 function M.to_world(x, y, camera_url)
     -- Before the window has a size there is no backbuffer to map through.
-    if not has_window() then return x, y end
-    local px, py = x / DISPLAY_W * M.width, y / DISPLAY_H * M.height
+    local w, h = window_size()
+    if not w then return x, y end
+    local px, py = x / DISPLAY_W * w, y / DISPLAY_H * h
     local p = camera.screen_to_world(vmath.vector3(px, py, 0), camera_url)
     return p.x, p.y
 end
 
 --- The world area the camera shows: left, bottom, width, height.
 function M.visible_rect(camera_url)
-    if not has_window() then return 0, 0, DISPLAY_W, DISPLAY_H end
+    local w, h = window_size()
+    if not w then return 0, 0, DISPLAY_W, DISPLAY_H end
     local bl = camera.screen_to_world(vmath.vector3(0, 0, 0), camera_url)
-    local tr = camera.screen_to_world(vmath.vector3(M.width, M.height, 0), camera_url)
+    local tr = camera.screen_to_world(vmath.vector3(w, h, 0), camera_url)
     return bl.x, bl.y, tr.x - bl.x, tr.y - bl.y
 end
 
