@@ -82,7 +82,7 @@ function update(self, dt)
     label.set_text("#label", ("%d taps   %d s"):format(self.taps, math.ceil(self.time_left)))
     if self.time_left == 0 then
         label.set_text("#label", ("Time's up!\n%d taps"):format(self.taps))
-        if not self.reduced_motion then
+        if self.motion_quality == "full" and not self.reduced_motion then
             go.cancel_animations("game", "position")
             go.set_position(self.base_position, "game")
             go.animate("game", "position", go.PLAYBACK_ONCE_PINGPONG,
@@ -100,6 +100,7 @@ function on_input(self, action_id, action)
     -- local x, y = layout.to_world(action.x, action.y)
     -- PLACEHOLDER: count taps -- replace with your game
     self.taps = self.taps + 1
+    if self.reduced_motion then return end
     local pop = (self.motion_quality == "reduced" or self.device_tier == "low") and 1.05
         or (self.device_tier == "high" and 1.20 or 1.12)
     go.cancel_animations("game", "scale")

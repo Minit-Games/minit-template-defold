@@ -16,7 +16,7 @@ Textures are compressed by the SDK's texture profile, set in `game.project`; atl
 
 ## Device-adaptive effects
 
-The example in `main/game.script` adjusts its tap pop for motion quality and device tier, and skips its end shake when reduced motion is preferred. Until the minit-defold dependency includes `minit.get_motion_quality`, `minit.prefers_reduced_motion`, and `minit.get_device_tier`, it falls back to the browser's reduced-motion preference. Once those getters are available, add `?motionQuality=reduced`, `?deviceTier=low`, or `?reducedMotion=1` to the preview URL to see the effect adapt. See [Device-Adaptive Effects](https://minit.studio/docs/device-adaptive-effects).
+The example in `main/game.script` adjusts its tap pop for motion quality and device tier, skips the pop when reduced motion is preferred, and runs its end shake only at full motion quality when reduced motion is not preferred. On a facade without these getters, the example falls back to the browser's reduced-motion setting. The `?motionQuality=reduced`, `?deviceTier=low`, and `?reducedMotion=1` URL overrides take effect once the pinned minit-defold facade provides the getters. See [Device-Adaptive Effects](https://minit.studio/docs/device-adaptive-effects).
 
 ## Don't edit `minit_platform/`
 
