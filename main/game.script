@@ -22,10 +22,32 @@ local function read_config()
     return {}
 end
 
+local function prefers_reduced_motion()
+    if minit.prefers_reduced_motion then return minit.prefers_reduced_motion() end
+    if html5 then
+        return html5.run("JSON.stringify(typeof window.matchMedia==='function'?window.matchMedia('(prefers-reduced-motion: reduce)').matches:false)") == "true"
+    end
+    return false
+end
+
+local function get_motion_quality(reduced_motion)
+    if minit.get_motion_quality then return minit.get_motion_quality() end
+    return reduced_motion and "reduced" or "full"
+end
+
+local function get_device_tier()
+    if minit.get_device_tier then return minit.get_device_tier() end
+    return "unknown"
+end
+
 -- Center the label and size it from the viewport.
-local function relayout()
-    go.set_position(vmath.vector3(layout.width * 0.5, layout.height * 0.5, 0), "game")
-    go.set_scale(layout.unit * 0.8 / FONT_SIZE, "game")
+local function relayout(self)
+    self.base_position = vmath.vector3(layout.width * 0.5, layout.height * 0.5, 0)
+    local scale = layout.unit * 0.8 / FONT_SIZE
+    self.base_scale = vmath.vector3(scale, scale, scale)
+    go.cancel_animations("game")
+    go.set_position(self.base_position, "game")
+    go.set_scale(self.base_scale, "game")
 end
 
 local function finish(self, score, flavor_text)
@@ -42,20 +64,30 @@ function init(self)
     self.config = read_config()
     audio.init()
     layout.refresh()
-    relayout()
+    relayout(self)
+    -- Device-adaptive effects keep motion comfortable and lightweight.
+    self.reduced_motion = prefers_reduced_motion()
+    self.motion_quality = get_motion_quality(self.reduced_motion)
+    self.device_tier = get_device_tier()
     -- PLACEHOLDER: a 10 s tap round -- replace with your scene
     self.taps, self.time_left = 0, ROUND_SECONDS
     minit.loading_done()                      -- last line: the game is ready
 end
 
 function update(self, dt)
-    if layout.refresh() then relayout() end
+    if layout.refresh() then relayout(self) end
     if self.finished then return end
     -- PLACEHOLDER: the round ends on time -- every game needs a clear end
     self.time_left = math.max(0, self.time_left - dt)
     label.set_text("#label", ("%d taps   %d s"):format(self.taps, math.ceil(self.time_left)))
     if self.time_left == 0 then
         label.set_text("#label", ("Time's up!\n%d taps"):format(self.taps))
+        if self.motion_quality == "full" and not self.reduced_motion then
+            go.cancel_animations("game", "position")
+            go.set_position(self.base_position, "game")
+            go.animate("game", "position", go.PLAYBACK_ONCE_PINGPONG,
+                self.base_position + vmath.vector3(layout.unit * 0.04, 0, 0), go.EASING_OUTSINE, 0.12)
+        end
         finish(self, self.taps, self.taps .. " taps in " .. ROUND_SECONDS .. " seconds")
     end
 end
@@ -68,4 +100,11 @@ function on_input(self, action_id, action)
     -- local x, y = layout.to_world(action.x, action.y)
     -- PLACEHOLDER: count taps -- replace with your game
     self.taps = self.taps + 1
+    if self.reduced_motion then return end
+    local pop = (self.motion_quality == "reduced" or self.device_tier == "low") and 1.05
+        or (self.device_tier == "high" and 1.20 or 1.12)
+    go.cancel_animations("game", "scale")
+    go.set_scale(self.base_scale, "game")
+    go.animate("game", "scale", go.PLAYBACK_ONCE_PINGPONG,
+        self.base_scale * pop, go.EASING_OUTSINE, 0.10)
 end

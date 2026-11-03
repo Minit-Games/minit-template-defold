@@ -14,6 +14,10 @@ A Defold project that already works inside Minit Games: a 10-second tap round yo
 
 Textures are compressed by the SDK's texture profile, set in `game.project`; atlases under any `uncompressed/` folder stay uncompressed, e.g. pixel art that must stay pixel-exact. The `.atlas` file's folder counts, not its images' folder.
 
+## Device-adaptive effects
+
+The example in `main/game.script` adjusts its tap pop for motion quality and device tier, skips the pop when reduced motion is preferred, and runs its end shake only at full motion quality when reduced motion is not preferred. On a facade without these getters, the example falls back to the browser's reduced-motion setting. The `?motionQuality=reduced`, `?deviceTier=low`, and `?reducedMotion=1` URL overrides take effect once the pinned minit-defold facade provides the getters. See [Device-Adaptive Effects](https://minit.studio/docs/device-adaptive-effects).
+
 ## Don't edit `minit_platform/`
 
 It is what makes the game work in the Minit app: audio that plays and is audible there, layout for the app's game slot, and touch mapping. Change your game in `main/` instead.
