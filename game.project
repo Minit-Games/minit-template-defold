@@ -5,7 +5,7 @@ dependencies#0 = https://github.com/Minit-Games/minit-defold/archive/refs/tags/v
 
 [bootstrap]
 main_collection = /main/main.collectionc
-render = /minit_platform/minit.renderc
+render = /builtins/render/default.renderc
 
 [input]
 game_binding = /minit_platform/game.input_bindingc
@@ -16,6 +16,12 @@ width = 960
 height = 1480
 high_dpi = 1
 update_frequency = 60
+
+[render]
+clear_color_red = 0.35
+clear_color_green = 0.62
+clear_color_blue = 0.85
+clear_color_alpha = 1
 
 [graphics]
 default_texture_min_filter = linear
