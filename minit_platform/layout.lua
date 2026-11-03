@@ -15,6 +15,8 @@ local M = {}
 local DISPLAY_W = sys.get_config_int("display.width", 960)
 local DISPLAY_H = sys.get_config_int("display.height", 1480)
 
+-- Backbuffer size and unit, filled by refresh(). They stay 0 until you call
+-- refresh() (e.g. at the top of update), so call it first if you use them.
 M.width, M.height = 0, 0
 M.unit = 0          -- the one size everything else is a multiple of
 
