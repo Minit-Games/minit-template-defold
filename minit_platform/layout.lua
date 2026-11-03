@@ -37,23 +37,31 @@ local function window_size()
     if w > 0 and h > 0 then return w, h end
 end
 
+-- depth (both functions): distance from the camera plane along its forward
+-- axis, in world units. Leave it nil for an orthographic camera. For a
+-- perspective camera pass the distance to the plane you want, e.g. 800 for a
+-- camera 800 units in front of z = 0; with 0 every point lands on the camera.
+
 --- Convert an input action's coordinates into world coordinates through the
---- given camera (nil: the last enabled camera).
-function M.to_world(x, y, camera_url)
+--- given camera (nil: the last enabled camera). Returns x, y, z.
+function M.to_world(x, y, camera_url, depth)
     -- Before the window has a size there is no backbuffer to map through.
     local w, h = window_size()
-    if not w then return x, y end
+    if not w then return x, y, 0 end
     local px, py = x / DISPLAY_W * w, y / DISPLAY_H * h
-    local p = camera.screen_to_world(vmath.vector3(px, py, 0), camera_url)
-    return p.x, p.y
+    local p = camera.screen_to_world(vmath.vector3(px, py, depth or 0), camera_url)
+    return p.x, p.y, p.z
 end
 
---- The world area the camera shows: left, bottom, width, height.
-function M.visible_rect(camera_url)
+--- The world area the camera shows: left, bottom, width, height. For a
+--- perspective camera this is the area on the plane at depth, assuming the
+--- camera looks straight down -z.
+function M.visible_rect(camera_url, depth)
     local w, h = window_size()
     if not w then return 0, 0, DISPLAY_W, DISPLAY_H end
-    local bl = camera.screen_to_world(vmath.vector3(0, 0, 0), camera_url)
-    local tr = camera.screen_to_world(vmath.vector3(w, h, 0), camera_url)
+    local d = depth or 0
+    local bl = camera.screen_to_world(vmath.vector3(0, 0, d), camera_url)
+    local tr = camera.screen_to_world(vmath.vector3(w, h, d), camera_url)
     return bl.x, bl.y, tr.x - bl.x, tr.y - bl.y
 end
 

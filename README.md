@@ -25,7 +25,8 @@ The example in `main/game.script` adjusts its tap pop for motion quality and dev
 - Anchor GUI nodes to the screen edges they belong to.
 - Place physics bodies once against 960×1480; never move them on resize.
 - Convert taps to world coordinates with `layout.to_world(action.x, action.y, "/camera#camera")`.
-- For things that should fill the slot, query `layout.visible_rect("/camera#camera")` in `update`, not `init`, and re-query it after a resize.
+- For things that should fill the slot, query `layout.visible_rect("/camera#camera")` every frame in `update`, not in `init` or only when the size changes: the camera applies a new window size after scripts run, so on that frame the rect is still the old one.
+- For 3D, switch the camera to perspective and pass the distance from the camera to your scene's plane as the last argument, e.g. `layout.to_world(action.x, action.y, "/camera#camera", 800)`.
 
 ## Don't edit `minit_platform/audio.lua`
 
