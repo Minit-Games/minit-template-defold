@@ -18,9 +18,19 @@ Textures are compressed by the SDK's texture profile, set in `game.project`; atl
 
 The example in `main/game.script` adjusts its tap pop for motion quality and device tier, skips the pop when reduced motion is preferred, and runs its end shake only at full motion quality when reduced motion is not preferred. On a facade without these getters, the example falls back to the browser's reduced-motion setting. The `?motionQuality=reduced`, `?deviceTier=low`, and `?reducedMotion=1` URL overrides take effect once the pinned minit-defold facade provides the getters. See [Device-Adaptive Effects](https://minit.studio/docs/device-adaptive-effects).
 
-## Don't edit `minit_platform/`
+## Screen and camera
 
-It is what makes the game work in the Minit app: audio that plays and is audible there, layout for the app's game slot, and touch mapping. Change your game in `main/` instead.
+- The camera in `main/main.collection` fits the 960×1480 display size into the app's game slot and shows more world on the longer side instead of black bars.
+- Switch it to Auto Cover, or move it, as your game needs.
+- Anchor GUI nodes to the screen edges they belong to.
+- Place physics bodies once against 960×1480; never move them on resize.
+- Convert taps to world coordinates with `layout.to_world(action.x, action.y, "/camera#camera")`.
+- For things that should fill the slot, query `layout.visible_rect("/camera#camera")` every frame in `update`, not in `init` or only when the size changes. After a resize it is one frame late, because the camera applies the new window size after scripts run.
+- For 3D, switch the camera to perspective, set its `near_z` to 0.1 and `far_z` beyond your scene (e.g. 1000), and pass the distance from the camera to your scene's plane as the last argument, e.g. `layout.to_world(action.x, action.y, "/camera#camera", 800)`.
+
+## Don't edit `minit_platform/audio.lua`
+
+It makes audio play and stay audible in the Minit app. `minit_platform/layout.lua` (the tap helper), the camera and the `game.project` render script setting (Defold's built-in one) are defaults you may change.
 
 ## AI agents
 
